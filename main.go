@@ -31,6 +31,7 @@ type Friend struct {
 func main() {
 	http.HandleFunc("/", home)
 	http.HandleFunc("/login", login)
+	http.HandleFunc("/jsonreq/", jsonreq)
 	http.Handle("/public/", http.StripPrefix("/public/", http.FileServer(http.Dir("./public"))))
 	err := http.ListenAndServe(":8090", nil)
 	if err != nil {
@@ -133,6 +134,16 @@ func login(w http.ResponseWriter, r *http.Request) {
 			fmt.Println(err)
 			return
 		}
+		err = exec.Command("cp", "./public/avatars/default", "./public/avatars/"+email).Run()
+		if err != nil {
+			fmt.Println("cp avatar failed", err)
+			return
+		}
+		err = exec.Command("cp", "-r", "./public/homes/default", "./public/homes/"+email).Run()
+		if err != nil {
+			fmt.Println("cp home failed", err)
+			return
+		}
 		http.SetCookie(w, &http.Cookie{Name: "lostchat-sessionid", Value: sid, Expires: time.Now().AddDate(1, 0, 0)})
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
@@ -151,6 +162,15 @@ func login(w http.ResponseWriter, r *http.Request) {
 	}
 	http.SetCookie(w, &http.Cookie{Name: "lostchat-sessionid", Value: u.SessionID, Expires: time.Now().AddDate(1, 0, 0)})
 	http.Redirect(w, r, "/", http.StatusFound)
+}
+func jsonreq(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	fmt.Println(r.URL.Path)
+	str := r.URL.Path[len("/jsonreq/"):]
+	switch str {
+	case "getAvatar":
+		http.ServeFile(w, r, "./public/avatars/default")
+	}
 }
 func RestartMongodb() {
 	exec.Command("systemctl", "restart", "mongodb").Run()

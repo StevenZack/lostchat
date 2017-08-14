@@ -22,9 +22,12 @@
 	<ul class="menu" style="box-shadow: 0px 0px 0px #fff;">
 		{{range .Friends}}
 		<li class="menu-item">
+		<div style="line-height: 40px;width: 100%;">
+			<figure class="avatar avatar-lg"><img src="/public/avatars/{{.To}}"></figure>
 			<a href="/chat/{{.To}}">{{.Remark}}</a>
+		</div>
 		</li>
-		<li class="devider"></li>
+		<li class="divider" data-content="{{.To}}"></li>
 		{{end}}
 	</ul>
 </div>
