@@ -38,6 +38,11 @@ func main() {
 	}
 }
 func home(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		t, _ := template.ParseFiles("notfound.html")
+		t.Execute(w, nil)
+		return
+	}
 	sid, err := r.Cookie("lostchat-sessionid")
 	if err != nil {
 		http.Redirect(w, r, "/login", http.StatusFound)
@@ -70,7 +75,11 @@ func home(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 		return
 	}
-	t, _ := template.ParseFiles("index.html")
+	t, err := template.ParseFiles("index.html")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	t.Execute(w, hd)
 }
 func login(w http.ResponseWriter, r *http.Request) {
