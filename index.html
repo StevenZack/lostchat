@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Home - LostChat</title>
+	<link rel="stylesheet" type="text/css" href="public/spectre.css">
+	<link rel="stylesheet" type="text/css" href="public/spectre-icon.css">
+	<meta http-equiv="pragma" content="no-cache"> 
+	<meta http-equiv="expires" content="0">
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width initial-scale=1">
+	<script type="text/javascript">
+		function setCookie(cname,cvalue,exdays){
+		  var d = new Date();
+		  d.setTime(d.getTime()+(exdays*24*60*60*1000));
+		  var expires = "expires="+d.toGMTString();
+		  document.cookie = cname + "=" + cvalue + "; " + expires;
+		}
+	</script>
+</head>
+<body>
+<div class="card fixed" style="line-height: 33px;width: 100%;top: 0px;">
+	<a href="/" style="margin-left: 5px;">LostChat</a>
+	<div class="popover popover-bottom float-right">
+	<button type="button" class="btn btn-primary btn-action circle">asd</button>
+	<div class="popover-container">
+		<div class="card">
+			<ul class="menu">
+				<li class="menu-item"><a href="/login" onclick="setCookie('lostchat-sessionid','',0)"><i class="icon icon-link"></i>注销</a></li>
+			</ul>
+		</div>
+	</div>
+	</div>
+</div>
+
+</body>
+</html>

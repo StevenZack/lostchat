@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Log in - LostChat</title>
+	<link rel="stylesheet" type="text/css" href="public/spectre.css">
+	<meta http-equiv="pragma" content="no-cache"> 
+	<meta http-equiv="expires" content="0">
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width initial-scale=1">
+	<script type="text/javascript">
+		function switchTOR (me) {
+			document.getElementsByName("State")[0].value="REGISTER"
+			me.style.display = 'none'
+			document.getElementsByName("Name")[0].style.display = 'block'
+			document.getElementsByName("submit")[0].style.display = 'none'
+			document.getElementById("mback").style.display = 'inline'
+			document.getElementsByName("register")[0].style.display = 'inline'
+		}
+		function goBack (me) {
+			document.getElementsByName("State")[0].value="LOGIN"
+			me.style.display = 'none'
+			document.getElementsByName("Name")[0].style.display = 'none'
+			document.getElementsByName("submit")[0].style.display = 'inline'
+			document.getElementById("mregister").style.display = 'inline'
+			document.getElementsByName("register")[0].style.display = 'none'
+		}
+	</script>
+</head>
+<body>
+<form action="/login" method="post" style="margin: 30px;">
+	<input type="hidden" name="State" value="LOGIN">
+	<input type="text" name="Email" class="form-input" placeholder="E-mail">
+	<input type="password" name="Password" class="form-input" placeholder="密码">
+	<input type="text" name="Name" class="form-input" placeholder="昵称" style="display: none;">
+	<strong id="result" style="color: red;">{{.Info}}</strong><br>
+	<input type="submit" name="submit" value="登录" class="btn btn-primary" onclick="this.className='btn btn-primary loading">
+	<button class="btn btn-link" type="button" id="mback" style="display: none;" onclick="goBack(this)">返回</button>
+	<button class="btn" type="button" id="mregister" onclick="switchTOR(this)">注册</button>
+	<input type="submit" name="register" value="注册" class="btn btn-primary" onclick="this.className='btn btn-primary loading" style="display: none;">
+</form>
+</body>
+</html>
