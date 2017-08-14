@@ -19,15 +19,14 @@
 </head>
 <body>
 <div class="abs" style="top: 35px;width: 100%">
-	<ul class="menu" style="box-shadow: 0px 0px 0px #fff;">
+	<ul class="menu" id="friendsList" style="box-shadow: 0px 0px 0px #fff;">
 		{{range .Friends}}
 		<li class="menu-item">
-		<div style="line-height: 40px;width: 100%;">
+		<a style="line-height: 40px;width: 100%;" href="/chat/{{.To}}">
 			<figure class="avatar avatar-lg"><img src="/public/avatars/{{.To}}"></figure>
-			<a href="/chat/{{.To}}">{{.Remark}}</a>
-		</div>
+			{{.Remark}}
+		</a>
 		</li>
-		<li class="divider" data-content="{{.To}}"></li>
 		{{end}}
 	</ul>
 </div>
