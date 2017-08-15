@@ -15,7 +15,49 @@
 		  var expires = "expires="+d.toGMTString();
 		  document.cookie = cname + "=" + cvalue + "; " + expires;
 		}
+		function getCookie(cname){
+		  var name = cname + "=";
+		  var ca = document.cookie.split(';');
+		  for(var i=0; i<ca.length; i++) 
+		  {
+		    var c = ca[i].trim();
+		    if (c.indexOf(name)==0) return c.substring(name.length,c.length);
+		  }
+		  return "";
+		}
+		function checkOnline(me,email) {
+			var xhr =new XMLHttpRequest()
+			xhr.onreadystatechange=function(){
+				if (xhr.responseText=="true") {
+					me.className=''
+				}
+			}
+			xhr.open("GET", "/jsonreq/checkOnline?Email="+email, true)
+			xhr.send(null)
+		}
+		function wsFunc() {
+			var ws=new WebSocket("ws://192.168.1.105:8090/connection")
+			ws.onopen=function(evt) {
+				console.log('on open')
+				ws.send('{"State":"SessionID","Info":"'+getCookie('lostchat-sessionid')+'"}')
+			}
+			ws.onmessage=function(evt) {
+				console.log(evt.data)
+			}
+			ws.onclose=function(evt) {
+				console.log('on closed')
+			}
+			ws.onerror=function(evt) {
+				console.log('on error:'+evt.data)
+			}
+		}
+		setTimeout("wsFunc()", 3000)
 	</script>
+	<style type="text/css">
+		.offline{
+			filter: grayscale();
+		}
+	</style>
 </head>
 <body>
 <div class="abs" style="top: 35px;width: 100%">
@@ -23,7 +65,7 @@
 		{{range .Friends}}
 		<li class="menu-item">
 		<a style="line-height: 40px;width: 100%;" href="/chat/{{.To}}">
-			<figure class="avatar avatar-lg"><img src="/public/avatars/{{.To}}"></figure>
+			<figure class="avatar avatar-lg"><img src="/public/avatars/{{.To}}" class="offline" onload="checkOnline(this,'{{.To}}')"></figure>
 			{{.Remark}}
 		</a>
 		</li>

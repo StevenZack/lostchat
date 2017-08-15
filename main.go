@@ -2,7 +2,9 @@ package main
 
 import (
 	"crypto/md5"
+	"encoding/json"
 	"fmt"
+	"golang.org/x/net/websocket"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"html/template"
@@ -32,6 +34,7 @@ func main() {
 	http.HandleFunc("/", home)
 	http.HandleFunc("/login", login)
 	http.HandleFunc("/jsonreq/", jsonreq)
+	http.Handle("/connection", websocket.Handler(wshandler))
 	http.Handle("/public/", http.StripPrefix("/public/", http.FileServer(http.Dir("./public"))))
 	err := http.ListenAndServe(":8090", nil)
 	if err != nil {
@@ -168,8 +171,13 @@ func jsonreq(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(r.URL.Path)
 	str := r.URL.Path[len("/jsonreq/"):]
 	switch str {
-	case "getAvatar":
-		http.ServeFile(w, r, "./public/avatars/default")
+	case "checkOnline":
+		if ConMap[r.Form["Email"][0]] != nil {
+			fmt.Fprint(w, "true")
+			return
+		}
+		fmt.Fprint(w, "false")
+		return
 	}
 }
 func RestartMongodb() {
@@ -181,4 +189,85 @@ func NewToken() string {
 	io.WriteString(h, strconv.FormatInt(crutime, 10))
 	token := fmt.Sprintf("%x", h.Sum(nil))
 	return token
+}
+
+var (
+	ConMap = make(map[string]*websocket.Conn)
+)
+
+type BaseInfo struct {
+	State, Info string
+}
+type Msg struct {
+	BaseInfo
+	Text               string
+	AttireID           string
+	Action             string
+	FromEmail, ToEmail string
+}
+
+func wshandler(ws *websocket.Conn) {
+	fmt.Println("New connection")
+	defer ws.Close()
+	defer fmt.Println("ws closed")
+	bi := BaseInfo{}
+	b := make([]byte, 128)
+	length, err := ws.Read(b)
+	if err != nil {
+		return
+	}
+	err = json.Unmarshal(b[:length], &bi)
+	if err != nil || bi.State != "SessionID" {
+		ReturnInfo(ws, "ERR", "Protocol mismatch")
+		return
+	}
+	s, err := mgo.Dial(MongoDBServer)
+	if err != nil {
+		go RestartMongodb()
+		ReturnInfo(ws, "SERVER-ERR", "cannot connect to MongoDB")
+		return
+	}
+	defer s.Close()
+	cu := s.DB("lostchat").C("users")
+	u := User{}
+	err = cu.Find(bson.M{"sessionid": bi.Info}).One(&u)
+	if err != nil {
+		ReturnInfo(ws, "ERR", "SessionID out of date")
+		return
+	}
+	ConMap[u.Email] = ws
+	ReturnInfo(ws, "OK", "Succeed")
+LoopFlag:
+	for {
+		length, err = ws.Read(b)
+		if err != nil {
+			ConMap[u.Email] = nil
+			return
+		}
+		msg := Msg{}
+		err = json.Unmarshal(b[:length], &msg)
+		if err != nil {
+			continue
+		}
+		switch msg.State {
+		case "SEND":
+			if ConMap[msg.ToEmail] != nil {
+				msg.FromEmail = u.Email
+				ReturnData(ConMap[msg.ToEmail], msg)
+				msg.State = "SENT"
+				ReturnData(ws, msg)
+				continue LoopFlag
+			}
+		}
+	}
+}
+func ReturnInfo(w io.Writer, state, info string) {
+	b := BaseInfo{State: state, Info: info}
+	d, _ := json.Marshal(b)
+	w.Write(d)
+}
+func ReturnData(w io.Writer, data interface{}) {
+	d, _ := json.Marshal(data)
+	w.Write(d)
+	fmt.Println(string(d))
 }
