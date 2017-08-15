@@ -35,6 +35,61 @@
 			xhr.open("GET", "/jsonreq/checkOnline?Email="+email, true)
 			xhr.send(null)
 		}
+		function addFriendFunc() {
+			var email=prompt("输入好友E-mail", "")
+			if (email!=null&&email!="") {
+				var sid=getCookie("lostchat-sessionid")
+				var xhr=new XMLHttpRequest()
+				xhr.onreadystatechange=function() {
+					if (xhr.readyState==4) {
+						if (xhr.responseText=="OK") {
+							setNick(email)
+						}else{
+							alert(xhr.responseText)
+						}
+					}
+				}
+				xhr.open("GET", "/jsonreq/addFriend?Me="+sid+"&Email="+email, true)
+				xhr.send(null)
+			}
+		}
+		function deleteFriend(remark,email) {
+			if (confirm('确定要删除好友:'+remark+' ('+email+') ?')) {
+				var sid=getCookie('lostchat-sessionid')
+				var xhr=new XMLHttpRequest()
+				xhr.onreadystatechange=function() {
+					if (xhr.readyState==4) {
+						if (xhr.responseText!="OK") {
+							alert(xhr.responseText)
+						}else{
+							location.href="/"
+						}
+					}
+				}
+				xhr.open("GET", "/jsonreq/deleteFriend?Me="+sid+"&Email="+email, true)
+				xhr.send(null)
+			}
+		}
+		function setNick(email) {
+			var remark=prompt("添加成功，请设置备注", "")
+			if (remark!=null&&remark!="") {
+				var sid=getCookie("lostchat-sessionid")
+				var xhr=new XMLHttpRequest()
+				xhr.onreadystatechange=function() {
+					if (xhr.readyState==4) {
+						if (xhr.responseText=="OK") {
+							location.href="/"
+						}else{
+							alert(xhr.responseText)
+						}
+					}
+				}
+				xhr.open("GET", "/jsonreq/setRemark?Me="+sid+"&Email="+email+"&Remark="+remark, true)
+				xhr.send(null)
+			}else{
+				location.href="/"
+			}
+		}
 		function wsFunc() {
 			var ws=new WebSocket("ws://192.168.1.105:8090/connection")
 			ws.onopen=function(evt) {
@@ -43,6 +98,14 @@
 			}
 			ws.onmessage=function(evt) {
 				console.log(evt.data)
+				var obj=JSON.parse(evt.data)
+				if (obj.State=="OK") {
+					var mEmail=document.getElementById("mDivider").innerHTML
+					var memyself=document.getElementById(mEmail)
+					if (memyself!=null) {
+						memyself.className=''
+					}
+				}
 			}
 			ws.onclose=function(evt) {
 				console.log('on closed')
@@ -51,7 +114,7 @@
 				console.log('on error:'+evt.data)
 			}
 		}
-		setTimeout("wsFunc()", 3000)
+		setTimeout("wsFunc()", 100)
 	</script>
 	<style type="text/css">
 		.offline{
@@ -63,11 +126,21 @@
 <div class="abs" style="top: 35px;width: 100%">
 	<ul class="menu" id="friendsList" style="box-shadow: 0px 0px 0px #fff;">
 		{{range .Friends}}
-		<li class="menu-item">
-		<a style="line-height: 40px;width: 100%;" href="/chat/{{.To}}">
-			<figure class="avatar avatar-lg"><img src="/public/avatars/{{.To}}" class="offline" onload="checkOnline(this,'{{.To}}')"></figure>
+		<li class="menu-item columns">
+		<a class="column" style="line-height: 40px;width: 100%;" href="/chat/{{.To}}">
+			<figure class="avatar avatar-lg"><img id="{{.To}}" src="/public/avatars/{{.To}}" class="offline" onload="checkOnline(this,'{{.To}}')"></figure>
 			{{.Remark}}
 		</a>
+		<div class="column col-1 popover popover-bottom">
+			<button class="btn btn-link"><i class="icon icon-more-vert"></i></button>
+			<div class="popover-container">
+			<div class="card">
+			<ul class="menu">
+				<li class="menu-item"><a style="cursor: pointer;" onclick="deleteFriend('{{.Remark}}','{{.To}}')"><i class="icon icon-delete"></i>删除好友</a></li>
+			</ul>
+			</div>
+			</div>
+		</div>
 		</li>
 		{{end}}
 	</ul>
@@ -77,12 +150,16 @@
 <div class="card fixed" style="line-height: 35px;width: 100%;top: 0px;">
 	<a href="/" style="margin-left: 5px;">LostChat</a>
 	<div class="popover popover-bottom float-right">
-	<button type="button" class="btn btn-primary btn-action circle">asd</button>
+	<figure class="avatar avatar-sm"><img src="/public/avatars/{{.Email}}"></figure>
 	<div class="popover-container">
 		<div class="card">
 			<ul class="menu">
 				<li class="menu-item"><h4>{{.Name}}</h4></li>
-				<li class="menu-item"><a href="/login" onclick="setCookie('lostchat-sessionid','',0)"><i class="icon icon-link"></i>注销</a></li>
+				<li id="mDivider" class="menu-item">{{.Email}}</li>
+				<li class="menu-item"><a style="cursor: pointer;" onclick="addFriendFunc()">
+					<i class="icon icon-plus"></i>添加好友
+				</a></li>
+				<li class="menu-item"><a href="/login" onclick="setCookie('lostchat-sessionid','',0)"><i class="icon icon-shutdown"></i>注销</a></li>
 			</ul>
 		</div>
 	</div>

@@ -52,7 +52,6 @@ func home(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusFound)
 		return
 	}
-	fmt.Println(sid)
 	s, err := mgo.Dial(MongoDBServer)
 	if err != nil {
 		go RestartMongodb()
@@ -178,6 +177,109 @@ func jsonreq(w http.ResponseWriter, r *http.Request) {
 		}
 		fmt.Fprint(w, "false")
 		return
+	case "addFriend":
+		email := r.Form["Email"][0]
+		me := r.Form["Me"][0]
+		s, err := mgo.Dial(MongoDBServer)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer s.Close()
+		cu := s.DB("lostchat").C("users")
+		cf := s.DB("lostchat").C("friends")
+		emailC, err := cu.Find(bson.M{"email": email}).Count()
+		if err != nil || emailC < 1 {
+			fmt.Fprint(w, "没有这个用户")
+			return
+		}
+		u := User{}
+		err = cu.Find(bson.M{"sessionid": me}).One(&u)
+		if err != nil {
+			fmt.Fprint(w, "登录信息失效,请重新登录")
+			return
+		}
+		fC, err := cf.Find(bson.M{"from": u.Email, "to": email}).Count()
+		if err == nil && fC > 0 {
+			fmt.Fprint(w, "已经是好友")
+			return
+		}
+		err = cf.Insert(Friend{From: u.Email, To: email})
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		fmt.Fprint(w, "OK")
+		return
+	case "deleteFriend":
+		email := r.Form["Email"][0]
+		me := r.Form["Me"][0]
+		s, err := mgo.Dial(MongoDBServer)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer s.Close()
+		cu := s.DB("lostchat").C("users")
+		cf := s.DB("lostchat").C("friends")
+		emailC, err := cu.Find(bson.M{"email": email}).Count()
+		if err != nil || emailC < 1 {
+			fmt.Fprint(w, "没有这个用户")
+			return
+		}
+		u := User{}
+		err = cu.Find(bson.M{"sessionid": me}).One(&u)
+		if err != nil {
+			fmt.Fprint(w, "登录信息失效,请重新登录")
+			return
+		}
+		fC, err := cf.Find(bson.M{"from": u.Email, "to": email}).Count()
+		if err != nil || fC < 1 {
+			fmt.Fprint(w, "不是好友关系")
+			return
+		}
+		err = cf.Remove(bson.M{"from": u.Email, "to": email})
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		fmt.Fprint(w, "OK")
+		return
+	case "setRemark":
+		email := r.Form["Email"][0]
+		me := r.Form["Me"][0]
+		remark := r.Form["Remark"][0]
+		s, err := mgo.Dial(MongoDBServer)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer s.Close()
+		cu := s.DB("lostchat").C("users")
+		cf := s.DB("lostchat").C("friends")
+		emailC, err := cu.Find(bson.M{"email": email}).Count()
+		if err != nil || emailC < 1 {
+			fmt.Fprint(w, "没有这个用户")
+			return
+		}
+		u := User{}
+		err = cu.Find(bson.M{"sessionid": me}).One(&u)
+		if err != nil {
+			fmt.Fprint(w, "登录信息失效,请重新登录")
+			return
+		}
+		fC, err := cf.Find(bson.M{"from": u.Email, "to": email}).Count()
+		if err != nil || fC < 1 {
+			fmt.Fprint(w, "不是好友关系")
+			return
+		}
+		err = cf.Update(bson.M{"from": u.Email, "to": email}, bson.M{"$set": bson.M{"remark": remark}})
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		fmt.Fprint(w, "OK")
+		return
 	}
 }
 func RestartMongodb() {
@@ -207,7 +309,6 @@ type Msg struct {
 }
 
 func wshandler(ws *websocket.Conn) {
-	fmt.Println("New connection")
 	defer ws.Close()
 	defer fmt.Println("ws closed")
 	bi := BaseInfo{}
@@ -258,6 +359,9 @@ LoopFlag:
 				ReturnData(ws, msg)
 				continue LoopFlag
 			}
+			msg.State = "UNSENT"
+			ReturnData(ws, msg)
+			continue LoopFlag
 		}
 	}
 }
@@ -269,5 +373,4 @@ func ReturnInfo(w io.Writer, state, info string) {
 func ReturnData(w io.Writer, data interface{}) {
 	d, _ := json.Marshal(data)
 	w.Write(d)
-	fmt.Println(string(d))
 }
