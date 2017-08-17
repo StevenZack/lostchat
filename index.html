@@ -91,27 +91,27 @@
 			}
 		}
 		function wsFunc() {
+			var mEmail=document.getElementById("mDivider").innerHTML
+			var memyself=document.getElementById("mEmail")
 			var ws=new WebSocket("ws://192.168.1.105:8090/connection")
 			ws.onopen=function(evt) {
 				console.log('on open')
 				ws.send('{"State":"SessionID","Info":"'+getCookie('lostchat-sessionid')+'"}')
 			}
 			ws.onmessage=function(evt) {
-				console.log(evt.data)
+				console.log('on msg'+evt.data)
 				var obj=JSON.parse(evt.data)
 				if (obj.State=="OK") {
-					var mEmail=document.getElementById("mDivider").innerHTML
-					var memyself=document.getElementById(mEmail)
 					if (memyself!=null) {
 						memyself.className=''
 					}
 				}
 			}
+			ws.onerror=function(evt) {
+				console.log('on err:'+evt.data)
+			}
 			ws.onclose=function(evt) {
 				console.log('on closed')
-			}
-			ws.onerror=function(evt) {
-				console.log('on error:'+evt.data)
 			}
 		}
 		setTimeout("wsFunc()", 100)
@@ -120,6 +120,7 @@
 		.offline{
 			filter: grayscale();
 		}
+
 	</style>
 </head>
 <body>
@@ -127,7 +128,7 @@
 	<ul class="menu" id="friendsList" style="box-shadow: 0px 0px 0px #fff;">
 		{{range .Friends}}
 		<li class="menu-item columns">
-		<a class="column" style="line-height: 40px;width: 100%;" href="/chat/{{.To}}">
+		<a class="column" style="line-height: 40px;width: 100%;" href="/chat?Email={{.To}}">
 			<figure class="avatar avatar-lg"><img id="{{.To}}" src="/public/avatars/{{.To}}" class="offline" onload="checkOnline(this,'{{.To}}')"></figure>
 			{{.Remark}}
 		</a>
@@ -156,6 +157,9 @@
 			<ul class="menu">
 				<li class="menu-item"><h4>{{.Name}}</h4></li>
 				<li id="mDivider" class="menu-item">{{.Email}}</li>
+				<li class="menu-item"><a style="cursor: pointer;" onclick="location.href='/'">
+					<i class="icon icon-refresh"></i>刷新
+				</a></li>
 				<li class="menu-item"><a style="cursor: pointer;" onclick="addFriendFunc()">
 					<i class="icon icon-plus"></i>添加好友
 				</a></li>

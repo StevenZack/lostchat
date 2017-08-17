@@ -10,6 +10,7 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	"os"
 	"os/exec"
 	"strconv"
 	"time"
@@ -24,16 +25,25 @@ type User struct {
 	Name, AttireID, HomeID, Avatar string
 	Online                         string
 	Money                          int
+	Cols                           []string
 }
 type Friend struct {
 	From, To string
 	Remark   string
 }
+type Col struct {
+	ColID      string
+	OwnerEmail string
+	ColName    string
+	Pics       []string
+}
 
 func main() {
 	http.HandleFunc("/", home)
 	http.HandleFunc("/login", login)
+	http.HandleFunc("/chat", chat)
 	http.HandleFunc("/jsonreq/", jsonreq)
+	http.HandleFunc("/addPicToCol", addPicToCol)
 	http.Handle("/connection", websocket.Handler(wshandler))
 	http.Handle("/public/", http.StripPrefix("/public/", http.FileServer(http.Dir("./public"))))
 	err := http.ListenAndServe(":8090", nil)
@@ -250,8 +260,9 @@ func jsonreq(w http.ResponseWriter, r *http.Request) {
 		me := r.Form["Me"][0]
 		remark := r.Form["Remark"][0]
 		s, err := mgo.Dial(MongoDBServer)
-		if err != nil {
+		if err != nil || email == "" || me == "" || remark == "" {
 			fmt.Println(err)
+			fmt.Fprint(w, "ERR")
 			return
 		}
 		defer s.Close()
@@ -276,6 +287,106 @@ func jsonreq(w http.ResponseWriter, r *http.Request) {
 		err = cf.Update(bson.M{"from": u.Email, "to": email}, bson.M{"$set": bson.M{"remark": remark}})
 		if err != nil {
 			fmt.Println(err)
+			return
+		}
+		fmt.Fprint(w, "OK")
+		return
+	case "newCol":
+		sid := r.Form["SessionID"][0]
+		colName := r.Form["ColName"][0]
+		s, err := mgo.Dial(MongoDBServer)
+		if err != nil || sid == "" || colName == "" {
+			fmt.Fprint(w, "输入不正确")
+			return
+		}
+		defer s.Close()
+		cu := s.DB("lostchat").C("users")
+		cc := s.DB("lostchat").C("cols")
+		u := User{}
+		err = cu.Find(bson.M{"sessionid": sid}).One(&u)
+		if err != nil {
+			fmt.Fprint(w, "登录信息失效,请重新登录")
+			return
+		}
+		colid := NewToken()
+		strs := append(u.Cols, colid)
+		err = cu.Update(bson.M{"sessionid": sid}, bson.M{"$set": bson.M{"cols": strs}})
+		if err != nil {
+			fmt.Fprint(w, "添加失败:"+err.Error())
+			return
+		}
+		err = cc.Insert(Col{ColID: colid, ColName: colName, OwnerEmail: u.Email})
+		if err != nil {
+			fmt.Fprint(w, "添加失败:"+err.Error())
+			return
+		}
+		fmt.Fprint(w, "OK")
+		return
+	case "deleteCol":
+		sid := r.Form["SessionID"][0]
+		colid := r.Form["ColID"][0]
+		s, err := mgo.Dial(MongoDBServer)
+		if err != nil || sid == "" || colid == "" {
+			fmt.Fprint(w, "输入不正确")
+			return
+		}
+		defer s.Close()
+		cu := s.DB("lostchat").C("users")
+		cc := s.DB("lostchat").C("cols")
+		u := User{}
+		err = cu.Find(bson.M{"sessionid": sid}).One(&u)
+		if err != nil {
+			fmt.Fprint(w, "登录信息失效,请重新登录")
+			return
+		}
+		err = cc.Remove(bson.M{"colid": colid, "owneremail": u.Email})
+		if err != nil {
+			fmt.Fprint(w, "您没有该收藏夹")
+			return
+		}
+		fmt.Fprint(w, "OK")
+		return
+	case "deletePic":
+		picid := r.Form["PicID"][0]
+		sid := r.Form["SessionID"][0]
+		colid := r.Form["ColID"][0]
+		if picid == "" || sid == "" || colid == "" {
+			fmt.Fprint(w, "输入不正确")
+			return
+		}
+		s, err := mgo.Dial(MongoDBServer)
+		if err != nil {
+			fmt.Println(err)
+			go RestartMongodb()
+			return
+		}
+		defer s.Close()
+		cu := s.DB("lostchat").C("users")
+		u := User{}
+		err = cu.Find(bson.M{"sessionid": sid}).One(&u)
+		if err != nil {
+			fmt.Fprint(w, "登录信息失效,请重新登录")
+			return
+		}
+		if !ContainsStr(u.Cols, colid) {
+			fmt.Fprint(w, "收藏夹不存在")
+			return
+		}
+		cc := s.DB("lostchat").C("cols")
+		mcol := Col{}
+		err = cc.Find(bson.M{"colid": colid, "owneremail": u.Email}).One(&mcol)
+		if err != nil {
+			fmt.Fprint(w, err.Error())
+			return
+		}
+		mpics := DeleteFromList(mcol.Pics, picid)
+		if mpics == nil {
+			fmt.Fprint(w, "没有该图片")
+			return
+		}
+		err = cc.Update(bson.M{"colid": colid, "owneremail": u.Email}, bson.M{"$set": bson.M{"pics": mpics}})
+		if err != nil {
+			fmt.Fprint(w, err)
 			return
 		}
 		fmt.Fprint(w, "OK")
@@ -373,4 +484,111 @@ func ReturnInfo(w io.Writer, state, info string) {
 func ReturnData(w io.Writer, data interface{}) {
 	d, _ := json.Marshal(data)
 	w.Write(d)
+}
+func chat(w http.ResponseWriter, r *http.Request) {
+	fmt.Println(r.URL.Path)
+	var email = r.FormValue("Email")
+	sid, err := r.Cookie("lostchat-sessionid")
+	if err != nil {
+		fmt.Println("redirect 1")
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+	s, err := mgo.Dial(MongoDBServer)
+	if err != nil {
+		go RestartMongodb()
+		fmt.Println(err)
+		return
+	}
+	defer s.Close()
+	cu := s.DB("lostchat").C("users")
+	type ChatData struct {
+		Me, Object User
+	}
+	cd := ChatData{}
+	err = cu.Find(bson.M{"sessionid": sid.Value}).One(&cd.Me)
+	if err != nil {
+		fmt.Println("redirect 2:", err.Error())
+		http.SetCookie(w, &http.Cookie{Name: "lostchat-sessionid", Value: "", Expires: time.Now()})
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+	err = cu.Find(bson.M{"email": email}).One(&cd.Object)
+	if err != nil {
+		t, _ := template.ParseFiles("notfound.html")
+		t.Execute(w, nil)
+		return
+	}
+	t, err := template.ParseFiles("chat.html")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	t.Execute(w, cd)
+}
+func addPicToCol(w http.ResponseWriter, r *http.Request) {
+	r.ParseMultipartForm(10 << 20)
+	sid := r.MultipartForm.Value["SessionID"][0]
+	colid := r.MultipartForm.Value["ColID"][0]
+	s, err := mgo.Dial(MongoDBServer)
+	if err != nil {
+		fmt.Println(err)
+		go RestartMongodb()
+		return
+	}
+	defer s.Close()
+	cu := s.DB("lostchat").C("users")
+	u := User{}
+	err = cu.Find(bson.M{"sessionid": sid}).One(&u)
+	if err != nil {
+		fmt.Fprint(w, "登录信息失效,请重新登录")
+		return
+	}
+	if !ContainsStr(u.Cols, colid) {
+		fmt.Fprint(w, "不存在的收藏夹")
+		return
+	}
+	header := r.MultipartForm.File["Img"][0]
+	file, err := header.Open()
+	if err != nil {
+		fmt.Fprint(w, err.Error())
+		return
+	}
+	picid := NewToken()
+	f, err := os.OpenFile("./public/pics/"+picid, os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		fmt.Fprint(w, err.Error())
+		return
+	}
+	io.Copy(f, file)
+	cc := s.DB("lostchat").C("cols")
+	mcol := Col{}
+	err = cc.Find(bson.M{"colid": colid, "owneremail": u.Email}).One(&mcol)
+	if err != nil {
+		fmt.Fprint(w, err.Error())
+		return
+	}
+	pics := append(mcol.Pics, picid)
+	err = cc.Update(bson.M{"colid": colid, "owneremail": u.Email}, bson.M{"$set": bson.M{"pics": pics}})
+	if err != nil {
+		fmt.Fprint(w, err)
+		return
+	}
+	fmt.Fprint(w, "OK")
+}
+func ContainsStr(strs []string, str string) bool {
+	for _, v := range strs {
+		if v == str {
+			return true
+		}
+	}
+	return false
+}
+func DeleteFromList(strs []string, str string) []string {
+	for k, v := range strs {
+		if v == str {
+			return append(strs[:k], strs[k+1:]...)
+		}
+	}
+	return nil
 }

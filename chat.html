@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html style="height: 100%;">
+<head>
+	<title>Chat - LostChat</title>
+	<link rel="stylesheet" type="text/css" href="public/spectre.css">
+	<link rel="stylesheet" type="text/css" href="public/spectre-icon.css">
+	<meta http-equiv="pragma" content="no-cache"> 
+	<meta http-equiv="expires" content="0">
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width initial-scale=1,maximum-scale=1,user-scalable=no">
+	<script type="text/javascript">
+		function setCookie(cname,cvalue,exdays){
+		  var d = new Date();
+		  d.setTime(d.getTime()+(exdays*24*60*60*1000));
+		  var expires = "expires="+d.toGMTString();
+		  document.cookie = cname + "=" + cvalue + "; " + expires;
+		}
+		function getCookie(cname){
+		  var name = cname + "=";
+		  var ca = document.cookie.split(';');
+		  for(var i=0; i<ca.length; i++) 
+		  {
+		    var c = ca[i].trim();
+		    if (c.indexOf(name)==0) return c.substring(name.length,c.length);
+		  }
+		  return "";
+		}
+		function connection() {
+			var ws=new WebSocket("ws://192.168.1.105:8090/connection")
+			ws.onopen=function(evt) {
+				console.log('on open')
+				ws.send('{"State":"SessionID","Info":"'+getCookie('lostchat-sessionid')+'"}')
+			}
+			ws.onmessage=function(evt) {
+				console.log('on msg'+evt.data)
+				var obj=JSON.parse(evt.data)
+			}
+			ws.onerror=function(evt) {
+				console.log('on err:'+evt.data)
+			}
+			ws.onclose=function(evt) {
+				console.log('on closed')
+			}
+			this.mHeight=document.body.clientHeight
+			this.subHeight=document.body.clientHeight
+		}
+		function onfocusFunc() {
+			var h=document.body.clientHeight
+			if (h<this.mHeight) {
+				this.subHeight=h
+			}
+			document.getElementById('colpanel').style.display='none';
+			document.getElementById("btIcon").className="icon icon-arrow-up"	
+		}
+		function send() {
+			var panel=document.getElementById("colpanel")
+			var input=document.getElementById("minput")
+			var bt=document.getElementById("btIcon")
+			var img=document.getElementById("mimg")
+			if (panel.style.display=='none') {
+				if (this.subHeight==this.mHeight) {
+					panel.style.height = '130px'
+				}else{
+					panel.style.height = (this.mHeight-this.subHeight).toString()+"px"
+				}
+				panel.style.display = 'block'
+				img.style.height = this.subHeight.toString()+"px"
+				if (input.value==null||input.value=='') {
+					bt.className="icon icon-arrow-down"
+				}else{
+					bt.className="icon icon-forward"
+				}
+			}else if(input.value==null||input.value==''){
+				panel.style.display = 'none'	
+				bt.className="icon icon-arrow-up"	
+				img.style.height = this.mHeight.toString()+"px"
+			}else{		
+				alert("Send:"+input.value)
+			}
+		}
+		setTimeout("connection()", 100)
+	</script>
+</head>
+<body style="height: 100%;margin: 0px;padding: 0px;">
+
+<div style="position: fixed;width: 100%;display: flex;bottom: 0px;flex-direction: column;">
+<div id="result"></div>
+<div style="display: flex;">
+	<input id="minput" type="text" name="msg" onfocus="setTimeout('onfocusFunc()',300);" style="flex-grow: 1;" onchange="onchangeFunc(this)"  class="form-input">
+	<button class="btn btn-action circle" onclick="send()"><i id="btIcon" class="icon icon-arrow-up"></i> </button>
+</div>
+<div style="overflow: auto;flex-grow: 1;display: none;" id="colpanel">
+<pre>
+	asd
+	a
+
+
+	asd
+
+	s
+	a
+	sd
+
+	a
+	s
+	as
+
+</pre>
+</div>
+</div>
+
+<div style="width: 100%;height: 100%;overflow: hidden;display: flex;flex-direction: column;align-items: center;">
+{{with .Object}}
+<img src="/public/homes/{{.Email}}/wallpaper" id="mimg" style="margin: 0px;height: 100%;" >
+{{end}}
+</div>
+
+</body>
+</html>
