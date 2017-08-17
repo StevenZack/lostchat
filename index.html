@@ -101,9 +101,43 @@
 			ws.onmessage=function(evt) {
 				console.log('on msg'+evt.data)
 				var obj=JSON.parse(evt.data)
-				if (obj.State=="OK") {
+				if (obj.State=="OK") {//connected to server
 					if (memyself!=null) {
 						memyself.className=''
+					}
+					return
+				}
+				if (obj.State=="SEND") {//get a new msg
+					if (obj.Action=='knock'&&obj.ToEmail==mEmail) {//new knock request
+						var item=document.getElementById(obj.FromEmail)
+						if (item==null) {
+							var li =document.createElement("li")
+							li.className='menu-item columns'
+							var ma=document.createElement("a")
+							ma.className='column'
+							ma.style.lineHeight  = '40px'
+							ma.style.width = '100%'
+							ma.href='/chat?Email='+obj.FromEmail+'&AnswerMode=true'
+							var fg=document.createElement("figure")
+							fg.className='avatar avatar-lg'
+							var oimg=document.createElement('img')
+							oimg.id=obj.FromEmail
+							oimg.alt='chrome'
+							oimg.src='/public/avatars/'+obj.FromEmail
+							fg.appendChild(oimg)
+							ma.appendChild(fg)
+							li.appendChild(ma)
+							document.getElementById('friendsList').appendChild(li)
+							item=fg
+						}
+						item.className='avatar avatar-lg badge'
+						var count=item.getAttribute("data-badge")
+						if (count==null||count=="") {
+							count="0"
+						}
+						item.setAttribute("data-badge", (parseInt(count, 10)+1).toString())
+						document.getElementById("aA"+obj.FromEmail).href='/chat?Email='+obj.FromEmail+'&AnswerMode=true'
+						item.children[0].className=''
 					}
 				}
 			}
@@ -128,8 +162,8 @@
 	<ul class="menu" id="friendsList" style="box-shadow: 0px 0px 0px #fff;">
 		{{range .Friends}}
 		<li class="menu-item columns">
-		<a class="column" style="line-height: 40px;width: 100%;" href="/chat?Email={{.To}}">
-			<figure class="avatar avatar-lg"><img id="{{.To}}" src="/public/avatars/{{.To}}" class="offline" onload="checkOnline(this,'{{.To}}')"></figure>
+		<a class="column" id="aA{{.To}}" style="line-height: 40px;width: 100%;" href="/chat?Email={{.To}}">
+			<figure class="avatar avatar-lg" id="{{.To}}"><img alt="chrome"  src="/public/avatars/{{.To}}" class="offline" onload="checkOnline(this,'{{.To}}')"></figure>
 			{{.Remark}}
 		</a>
 		<div class="column col-1 popover popover-bottom">

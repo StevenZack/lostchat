@@ -504,6 +504,7 @@ func chat(w http.ResponseWriter, r *http.Request) {
 	cu := s.DB("lostchat").C("users")
 	type ChatData struct {
 		Me, Object User
+		AnswerMode bool
 	}
 	cd := ChatData{}
 	err = cu.Find(bson.M{"sessionid": sid.Value}).One(&cd.Me)
@@ -523,6 +524,9 @@ func chat(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Println(err)
 		return
+	}
+	if r.FormValue("AnswerMode") == "true" {
+		cd.AnswerMode = true
 	}
 	t.Execute(w, cd)
 }
