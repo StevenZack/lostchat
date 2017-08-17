@@ -59,6 +59,9 @@
 						result.innerHTML='连接成功'
 						this.connected=true
 					}
+					if (obj.Action=='msg') {
+						result.innerHTML='发送成功：'+decodeURIComponent(obj.Text)
+					}
 					return
 				}
 				if (obj.State=="SEND") {//Get a new msg
@@ -68,13 +71,20 @@
 						return
 					}
 					if (obj.Action=="msg"&&obj.ToEmail==mEmail&&obj.FromEmail==toEmail) {//get a normal msg
-						result.innerHTML=obj.Text
+						result.innerHTML=decodeURIComponent(obj.Text)
 						if (obj.AttireID!=""&&obj.AttireID!=null) {
 							mimg.src='/public/pics/'+obj.AttireID
 						}
 						return
 					}
+					if (obj.Action=="knock"&&obj.ToEmail==mEmail&&obj.FromEmail==toEmail) {//get a normal msg
+						ws1.send('{"State":"SEND","Text":"'+encodeURIComponent(input.value)+'","FromEmail":"'+mEmail+'","ToEmail":"'+toEmail+'","Action":"accept"}')
+						return
+					}
 					return
+				}
+				if (obj.State=="UNSENT") {
+					document.getElementById("result").innerHTML='对方不在线'
 				}
 			}
 			ws1.onerror=function(evt) {
@@ -120,6 +130,7 @@
 				img.style.height = this.mHeight.toString()+"px"
 			}else{		
 				this.ws.send('{"State":"SEND","Text":"'+encodeURIComponent(input.value)+'","FromEmail":"'+mEmail+'","ToEmail":"'+toEmail+'","Action":"msg"}')
+				input.value=''
 			}
 		}
 		this.AnswerMode=false
@@ -134,7 +145,7 @@
 <body style="height: 100%;margin: 0px;padding: 0px;">
 
 <div style="position: fixed;width: 100%;display: flex;bottom: 0px;flex-direction: column;">
-<div id="result"></div>
+<h4 id="result" style="color: #fff;"></h4>
 <div style="display: flex;">
 {{with .Me}}
 <input type="hidden" id="mEmail" value="{{.Email}}" name="mEmail">

@@ -92,7 +92,7 @@
 		}
 		function wsFunc() {
 			var mEmail=document.getElementById("mDivider").innerHTML
-			var memyself=document.getElementById("mEmail")
+			var memyself=document.getElementById(mEmail)
 			var ws=new WebSocket("ws://192.168.1.105:8090/connection")
 			ws.onopen=function(evt) {
 				console.log('on open')
@@ -103,8 +103,9 @@
 				var obj=JSON.parse(evt.data)
 				if (obj.State=="OK") {//connected to server
 					if (memyself!=null) {
-						memyself.className=''
+						memyself.children[0].className=''
 					}
+
 					return
 				}
 				if (obj.State=="SEND") {//get a new msg
